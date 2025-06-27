@@ -48,8 +48,8 @@ function App() {
   // Handle date click to create a new event
   const handleDateClick = (info) => {
     const startDate = info.dateStr
-    const endDate = new Date(startDate)
-    endDate.setDate(endDate.getDate())
+    // const endDate = new Date(startDate)
+    // endDate.setDate(endDate.getDate())
     
     setFormData({
       title: '',
@@ -139,8 +139,8 @@ function App() {
     try {
       let response
       
+      // If any event is selected then Update existing event
       if (selectedEvent) {
-        // Update existing event
         response = await fetch(`${API_URL}/events/${selectedEvent._id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -288,6 +288,12 @@ function App() {
           }))}
           dateClick={handleDateClick}
           eventClick={handleEventClick}
+          // eventContent is used to show custom content in the date cell
+          eventContent={(arg) => {
+            return {
+              html: `<div class="fc-event-title">${arg.event.title}</div>`
+            }
+          }}
           height="auto"
           editable={true}
           selectable={true}

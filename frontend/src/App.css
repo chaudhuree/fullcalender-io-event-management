@@ -158,3 +158,18 @@ button {
     height: auto !important;
   }
 }
+
+
+
+/* Hide time in events */
+.fc-event-time {
+  display: none !important;
+}
+
+/* Ensure title takes full width */
+.fc-event-title {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
