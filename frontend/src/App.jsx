@@ -14,11 +14,15 @@ function App() {
   const [formData, setFormData] = useState({
     title: '',
     start: '',
+    startTime: '09:00',
     end: '',
+    endTime: '10:00',
     allDay: false,
     color: '#3788d8',
     description: ''
   })
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [monthEvents, setMonthEvents] = useState([])
   const modalRef = useRef(null)
   const API_URL = 'http://localhost:5000/api'
 
@@ -45,13 +49,15 @@ function App() {
   const handleDateClick = (info) => {
     const startDate = info.dateStr
     const endDate = new Date(startDate)
-    endDate.setDate(endDate.getDate() + 1)
+    endDate.setDate(endDate.getDate())
     
     setFormData({
       title: '',
       start: startDate,
-      end: endDate.toISOString().split('T')[0],
-      allDay: true,
+      startTime: '09:00',
+      end: startDate,
+      endTime: '10:00',
+      allDay: false,
       color: '#3788d8',
       description: ''
     })
@@ -63,11 +69,16 @@ function App() {
   const handleEventClick = (info) => {
     const event = events.find(e => e._id === info.event.id)
     if (event) {
+      const startDate = new Date(event.start)
+      const endDate = new Date(event.end)
+      
       setSelectedEvent(event)
       setFormData({
         title: event.title,
-        start: new Date(event.start).toISOString().split('T')[0],
-        end: new Date(event.end).toISOString().split('T')[0],
+        start: startDate.toISOString().split('T')[0],
+        startTime: event.allDay ? '00:00' : startDate.toTimeString().slice(0, 5),
+        end: endDate.toISOString().split('T')[0],
+        endTime: event.allDay ? '23:59' : endDate.toTimeString().slice(0, 5),
         allDay: event.allDay,
         color: event.color || '#3788d8',
         description: event.description || ''
@@ -85,14 +96,41 @@ function App() {
     })
   }
 
+  // Update month events when events or current date changes
+  useEffect(() => {
+    if (events.length > 0) {
+      const currentDate = new Date()
+      const currentMonth = currentDate.getMonth()
+      const currentYear = currentDate.getFullYear()
+      
+      const filteredEvents = events.filter(event => {
+        const eventDate = new Date(event.start)
+        return eventDate.getMonth() === currentMonth && eventDate.getFullYear() === currentYear
+      })
+      
+      // Sort events by date
+      const sortedEvents = [...filteredEvents].sort((a, b) => new Date(a.start) - new Date(b.start))
+      setMonthEvents(sortedEvents)
+    }
+  }, [events])
+  
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault()
     
+    // Combine date and time for start and end
+    const startDateTime = formData.allDay 
+      ? new Date(formData.start) 
+      : new Date(`${formData.start}T${formData.startTime}`)
+      
+    const endDateTime = formData.allDay 
+      ? new Date(formData.end + 'T23:59:59') 
+      : new Date(`${formData.end}T${formData.endTime}`)
+    
     const eventData = {
       title: formData.title,
-      start: new Date(formData.start),
-      end: new Date(formData.end),
+      start: startDateTime,
+      end: endDateTime,
       allDay: formData.allDay,
       color: formData.color,
       description: formData.description
@@ -169,13 +207,67 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100 p-4">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">Calendar App</h1>
-        <p className="text-gray-600">Schedule and manage your events</p>
+      <header className="mb-6 flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Calendar App</h1>
+          <p className="text-gray-600">Schedule and manage your events</p>
+        </div>
+        <button 
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="!bg-blue-500 hover:!bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline sidebar-toggle"
+        >
+          {sidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
+        </button>
       </header>
       
-      {/* Calendar Component */}
-      <div className="bg-white rounded-lg shadow-lg p-4 calendar-container">
+      <div className="flex flex-col md:flex-row gap-4">
+        {/* Sidebar */}
+        {sidebarOpen && (
+          <div className="md:w-1/4 bg-white rounded-lg shadow-lg p-4 mb-4 md:mb-0 event-sidebar">
+            <h2 className="text-xl font-semibold mb-4">This Month's Events</h2>
+            <div className="max-h-[600px]" style={{ overflowY: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              {monthEvents.length > 0 ? (
+                <ul className="space-y-2 event-sidebar-list">
+                  {monthEvents.map(event => {
+                    const eventDate = new Date(event.start)
+                    const formattedDate = eventDate.toLocaleDateString('en-US', { 
+                      month: 'short', 
+                      day: 'numeric' 
+                    })
+                    const formattedTime = event.allDay 
+                      ? 'All day' 
+                      : eventDate.toLocaleTimeString('en-US', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })
+                    
+                    return (
+                      <li 
+                        key={event._id} 
+                        className="p-2 border-l-4 rounded bg-gray-50 hover:bg-gray-100 cursor-pointer event-sidebar-item"
+                        style={{ borderLeftColor: event.color || '#3788d8' }}
+                        onClick={() => handleEventClick({ event: { id: event._id } })}
+                      >
+                        <div className="font-semibold">{event.title}</div>
+                        <div className="text-sm text-gray-600">
+                          {formattedDate} • {formattedTime}
+                        </div>
+                        {event.description && (
+                          <div className="text-sm text-gray-500 truncate mt-1">{event.description}</div>
+                        )}
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <p className="text-gray-500">No events this month</p>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Calendar Component */}
+        <div className={`bg-white rounded-lg shadow-lg p-4 calendar-container ${sidebarOpen ? 'md:w-3/4' : 'w-full'}`}>
         <FullCalendar
           plugins={[dayGridPlugin, interactionPlugin]}
           initialView="dayGridMonth"
@@ -222,6 +314,7 @@ function App() {
             }
           }}
         />
+      </div>
       </div>
       
       {/* Event Modal */}
@@ -289,6 +382,40 @@ function App() {
                   />
                 </div>
               </div>
+              
+              {!formData.allDay && (
+                <div className="grid grid-cols-2 gap-4 mb-4 event-time-inputs">
+                  <div>
+                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="startTime">
+                      Start Time
+                    </label>
+                    <input
+                      type="time"
+                      id="startTime"
+                      name="startTime"
+                      value={formData.startTime}
+                      onChange={handleInputChange}
+                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="endTime">
+                      End Time
+                    </label>
+                    <input
+                      type="time"
+                      id="endTime"
+                      name="endTime"
+                      value={formData.endTime}
+                      onChange={handleInputChange}
+                      className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
               
               <div className="mb-4">
                 <label className="flex items-center">
