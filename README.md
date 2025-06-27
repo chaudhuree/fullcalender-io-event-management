@@ -1,5 +1,7 @@
 # Calendar App
 
+<img src="demo.png" alt="Calendar App Demo">
+
 A modern and responsive calendar application built with the MERN stack (MongoDB, Express, React, Node.js) and FullCalendar.io.
 
 ## Features
